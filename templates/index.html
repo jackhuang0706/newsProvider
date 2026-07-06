@@ -10,18 +10,27 @@
     --bg: #f4f5f7; --card: #ffffff; --text: #1c1e21; --muted: #65676b;
     --accent: #0a66c2; --border: #e0e2e6; --chip-bg: #ffffff;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #16181c; --card: #1f2228; --text: #e8eaed; --muted: #9aa0a6;
-      --accent: #6cb2ff; --border: #33373d; --chip-bg: #24272e;
-    }
+  :root[data-theme="dark"] {
+    --bg: #16181c; --card: #1f2228; --text: #e8eaed; --muted: #9aa0a6;
+    --accent: #6cb2ff; --border: #33373d; --chip-bg: #24272e;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0; background: var(--bg); color: var(--text);
     font-family: "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
   }
-  header { padding: 24px 24px 4px; max-width: 960px; margin: 0 auto; }
+  header {
+    padding: 24px 24px 4px; max-width: 960px; margin: 0 auto;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  }
+  .theme-toggle {
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border); border-radius: 999px;
+    background: var(--chip-bg); color: var(--text);
+    font: inherit; font-size: 1rem; width: 38px; height: 38px; padding: 0;
+    margin-top: 10px; cursor: pointer; transition: all .15s;
+  }
+  .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
   header h1 {
     margin: 0 0 4px; font-size: 1.4rem;
     display: flex; align-items: center; gap: 10px;
@@ -98,11 +107,19 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 </style>
+<script>
+  // 在首次繪製前套用主題，避免載入時閃爍
+  document.documentElement.dataset.theme = localStorage.getItem('theme')
+    || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+</script>
 </head>
 <body>
 <header>
-  <h1><img src="/favicon.svg" alt="">新聞爬蟲</h1>
-  <p>資料來源：自由時報・聯合新聞網・報導者・ETtoday・Yahoo新聞・天下雜誌</p>
+  <div>
+    <h1><img src="/favicon.svg" alt="">新聞爬蟲</h1>
+    <p>資料來源：自由時報・聯合新聞網・報導者・ETtoday・Yahoo新聞・天下雜誌</p>
+  </div>
+  <button class="theme-toggle" id="themeToggle" type="button" aria-label="切換亮暗風格"></button>
 </header>
 <main>
   <div class="panel">
@@ -133,6 +150,19 @@
 <footer>© 2026 · fijjj</footer>
 
 <script>
+const themeToggle = document.getElementById('themeToggle');
+function renderThemeToggle() {
+  const dark = document.documentElement.dataset.theme === 'dark';
+  themeToggle.textContent = dark ? '☀️' : '🌙';
+}
+themeToggle.onclick = () => {
+  const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem('theme', next);
+  renderThemeToggle();
+};
+renderThemeToggle();
+
 const SOURCE_COLORS = {
   "自由時報": "#e4610f", "聯合新聞網": "#0a66c2", "報導者": "#a12d2f",
   "ETtoday": "#c7a008", "Yahoo新聞": "#6b3fa0", "天下雜誌": "#0f7b6c",
