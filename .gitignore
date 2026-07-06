@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 環境設定與機密
+.env
+*.local
+.claude/settings.local.json
+
+# 編輯器與系統檔案
+.vscode/
+.idea/
+.DS_Store
+
+# 日誌
+*.log

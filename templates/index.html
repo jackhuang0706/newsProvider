@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>新聞爬蟲</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #ffffff; --text: #1c1e21; --muted: #65676b;
+    --accent: #0a66c2; --border: #e0e2e6; --chip-bg: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16181c; --card: #1f2228; --text: #e8eaed; --muted: #9aa0a6;
+      --accent: #6cb2ff; --border: #33373d; --chip-bg: #24272e;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+  }
+  header { padding: 24px 24px 4px; max-width: 960px; margin: 0 auto; }
+  header h1 {
+    margin: 0 0 4px; font-size: 1.4rem;
+    display: flex; align-items: center; gap: 10px;
+  }
+  header h1 img { width: 30px; height: 30px; }
+  header p { margin: 0; color: var(--muted); font-size: .85rem; }
+  main { max-width: 960px; margin: 0 auto; padding: 20px 16px 30px; }
+  footer {
+    max-width: 960px; margin: 0 auto; padding: 16px 24px 32px;
+    color: var(--muted); font-size: .85rem; text-align: center;
+  }
+
+  .panel {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px; margin-bottom: 24px;
+  }
+  .panel h2 { margin: 0 0 12px; font-size: 1rem; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1.5px solid var(--border); border-radius: 999px;
+    padding: 7px 14px; cursor: pointer; user-select: none;
+    background: var(--chip-bg); font-size: .92rem; transition: all .15s;
+  }
+  .chip input { display: none; }
+  .chip.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+    margin-top: 16px;
+  }
+  .controls label { font-size: .88rem; color: var(--muted); }
+  select, button {
+    font: inherit; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--chip-bg); color: var(--text); padding: 8px 12px;
+  }
+  button.primary {
+    background: var(--accent); color: #fff; border: none;
+    padding: 9px 22px; cursor: pointer; font-weight: 600;
+  }
+  button.primary:disabled { opacity: .5; cursor: wait; }
+  button.ghost { cursor: pointer; font-size: .85rem; }
+
+  .topic-section { margin-bottom: 28px; }
+  .topic-section h3 {
+    font-size: 1.1rem; margin: 0 0 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .topic-section h3 .count { color: var(--muted); font-size: .8rem; font-weight: 400; }
+  .warn {
+    font-size: .8rem; color: #b05c00; background: rgba(255,166,0,.12);
+    border-radius: 8px; padding: 6px 10px; margin-bottom: 10px;
+  }
+  .news-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; margin-bottom: 8px;
+  }
+  .news-card a.title {
+    color: var(--text); text-decoration: none; font-weight: 600;
+    font-size: .98rem; line-height: 1.45;
+  }
+  .news-card a.title:hover { color: var(--accent); }
+  .meta { display: flex; gap: 10px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
+  .badge {
+    font-size: .72rem; padding: 2px 9px; border-radius: 999px;
+    color: #fff; font-weight: 600; letter-spacing: .5px;
+  }
+  .time { font-size: .78rem; color: var(--muted); }
+  .summary { margin: 6px 0 0; font-size: .84rem; color: var(--muted); line-height: 1.5; }
+  #status { text-align: center; color: var(--muted); padding: 30px 0; font-size: .9rem; }
+  .spinner {
+    width: 26px; height: 26px; margin: 0 auto 10px;
+    border: 3px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<header>
+  <h1><img src="/favicon.svg" alt="">新聞爬蟲</h1>
+  <p>資料來源：自由時報・聯合新聞網・報導者・ETtoday・Yahoo新聞・天下雜誌</p>
+</header>
+<main>
+  <div class="panel">
+    <h2>勾選想看的主題</h2>
+    <div class="chips" id="chips">
+      {% for key, name in topics.items() %}
+      <label class="chip" data-key="{{ key }}">
+        <input type="checkbox" value="{{ key }}" autocomplete="off"><span>{{ name }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    <div class="controls">
+      <button class="ghost" id="selectAll">全選</button>
+      <button class="ghost" id="clearAll">清除</button>
+      <label>每主題筆數（1–10）
+        <select id="perTopic">
+          {% for n in range(1, 11) %}
+          <option value="{{ n }}" {% if n == 10 %}selected{% endif %}>{{ n }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button class="primary" id="fetchBtn">抓取新聞</button>
+    </div>
+  </div>
+  <div id="status"></div>
+  <div id="results"></div>
+</main>
+<footer>© 2026 · fijjj</footer>
+
+<script>
+const SOURCE_COLORS = {
+  "自由時報": "#e4610f", "聯合新聞網": "#0a66c2", "報導者": "#a12d2f",
+  "ETtoday": "#c7a008", "Yahoo新聞": "#6b3fa0", "天下雜誌": "#0f7b6c",
+};
+
+document.querySelectorAll('.chip').forEach(chip => {
+  chip.addEventListener('change', () => {
+    chip.classList.toggle('on', chip.querySelector('input').checked);
+  });
+});
+document.getElementById('selectAll').onclick = () => setAll(true);
+document.getElementById('clearAll').onclick = () => setAll(false);
+function setAll(v) {
+  document.querySelectorAll('.chip input').forEach(i => { i.checked = v; });
+  document.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', v));
+}
+// 瀏覽器重新整理會還原上次的勾選狀態，但晶片高亮不會跟著還原，
+// 造成「看起來沒選卻抓出該主題」；載入時一律重設為全部未選
+setAll(false);
+
+function fmtTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts * 1000), now = new Date();
+  const hm = d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return d.toDateString() === now.toDateString()
+    ? '今天 ' + hm
+    : (d.getMonth() + 1) + '/' + d.getDate() + ' ' + hm;
+}
+
+function esc(s) {
+  const div = document.createElement('div');
+  div.textContent = s || '';
+  return div.innerHTML;
+}
+
+document.getElementById('fetchBtn').onclick = async () => {
+  const picked = [...document.querySelectorAll('.chip input:checked')].map(i => i.value);
+  const status = document.getElementById('status');
+  const results = document.getElementById('results');
+  if (!picked.length) { status.textContent = '請至少勾選一個主題'; return; }
+
+  const btn = document.getElementById('fetchBtn');
+  btn.disabled = true;
+  results.innerHTML = '';
+  status.innerHTML = '<div class="spinner"></div>正在從各新聞網站抓取，約需 10–20 秒…';
+
+  try {
+    const per = document.getElementById('perTopic').value;
+    const resp = await fetch(`/api/news?topics=${picked.join(',')}&per_topic=${per}`);
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || resp.status);
+    status.textContent = '';
+
+    let html = '';
+    for (const key of picked) {
+      const t = data.topics[key];
+      if (!t) continue;
+      html += `<section class="topic-section"><h3>${esc(t.name)}<span class="count">${t.items.length} 則</span></h3>`;
+      if (t.errors.length) {
+        html += `<div class="warn">⚠ 部分來源暫時無法取得：${t.errors.map(esc).join('；')}</div>`;
+      }
+      if (!t.items.length) {
+        html += `<div class="news-card">目前沒有符合此主題的新聞。</div>`;
+      }
+      for (const it of t.items) {
+        const color = SOURCE_COLORS[it.source] || '#888';
+        html += `<article class="news-card">
+          <a class="title" href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a>
+          <div class="meta">
+            <span class="badge" style="background:${color}">${esc(it.source)}</span>
+            <span class="time">${fmtTime(it.ts)}</span>
+          </div>
+          ${it.summary ? `<p class="summary">${esc(it.summary)}</p>` : ''}
+        </article>`;
+      }
+      html += '</section>';
+    }
+    results.innerHTML = html;
+  } catch (err) {
+    status.textContent = '抓取失敗：' + err.message;
+  } finally {
+    btn.disabled = false;
+  }
+};
+</script>
+</body>
+</html>
